@@ -1,5 +1,5 @@
 resource "aws_iam_role" "role" {
-  name = "k8s_pico_role"
+  name = "k8s_demo_role"
   path = "/"
 
 assume_role_policy = <<EOF

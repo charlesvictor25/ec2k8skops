@@ -4,20 +4,18 @@ provider "aws" {
 	secret_key = "${var.aws_secret_key}"
 	region = "${var.region}"
 }
-#data "template_file" "user_data" {
-#  template = file("kops.sh")
-#}
+
 resource "aws_vpc" "vpc" {
   cidr_block = "${var.cidr_vpc}"
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
-    Name = "hwpico"
+    Name = "hwdemo"
   }
 }
 
 resource "aws_route53_zone" "private" {
-  name = "helloworld.pico"
+  name = "helloworld.demo"
 
   vpc {
     vpc_id = "${aws_vpc.vpc.id}"
@@ -68,7 +66,7 @@ resource "aws_security_group" "sec_group" {
       from_port   = 22
       to_port     = 22
       protocol    = "tcp"
-      cidr_blocks = ["<public_ip>"]
+      cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -101,13 +99,13 @@ resource "aws_instance" "ec2Instance" {
   key_name = "DevOps"
 
   tags = {
-		Name = "Hello World - PICO"
+		Name = "Hello World - Demo"
 	}
 
   provisioner "remote-exec" {
     inline = [
-      "aws s3 mb s3://hwpico.k8s.helloworld.pico",
-      "export KOPS_STATE_STORE=s3://hwpico.k8s.helloworld.pico",
+      "aws s3 mb s3://hwdemo.k8s.helloworld.demo",
+      "export KOPS_STATE_STORE=s3://hwdemo.k8s.helloworld.demo",
       "ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa <<< y",
       "curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl",
       "chmod +x ./kubectl",
@@ -116,16 +114,13 @@ resource "aws_instance" "ec2Instance" {
       "chmod +x kops-linux-amd64",
       "sudo mv kops-linux-amd64 /usr/local/bin/kops",
       "export PATH=/usr/local/bin:$PATH",
-      "kops create cluster --cloud=aws --zones=eu-west-2a,eu-west-2b,eu-west-2c --master-zones eu-west-2a,eu-west-2b,eu-west-2c --node-count 5 --name=hwpico.k8s.helloworld.pico --dns-zone=helloworld.pico --dns private",
-      "kops update cluster --name hwpico.k8s.helloworld.pico --yes",
+      "kops create cluster --cloud=aws --zones=eu-west-2a,eu-west-2b,eu-west-2c --master-zones eu-west-2a,eu-west-2b,eu-west-2c --node-count 5 --name=hwdemo.k8s.helloworld.demo --dns-zone=helloworld.demo --dns private",
+      "kops update cluster --name hwdemo.k8s.helloworld.demo --yes",
       "sleep 600",
       "kops validate cluster",
       "kubectl create deploy tomcat --image=charlesvictor/tomcat:latest --replicas=4 --port=8080",
-      "kubectl expose deployment tomcat --port=8080 --type=LoadBalancer",
+      "kubectl expose deployment tomcat --port=8080 --type=NodePort",
       "echo This is the Public IP of the EC2 instance: ${aws_instance.ec2Instance.public_ip}",
-      #"echo This is the URL of the hello world application: ",
-      #"echo "$(echo "http://")""$(echo "$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}')")""$(echo ":")""$(echo "$(kubectl get svc -o go-template='{{range .items}}{{range.spec.ports}}{{if .nodePort}}{{.nodePort}}{{"\n"}}{{end}}{{end}}{{end}}')")""$(echo "/sample")"" ,
-
     ]
   }
 
